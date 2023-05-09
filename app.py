@@ -14,7 +14,7 @@ def main():
     try:
         st.set_page_config(page_title="GPT++", page_icon=None, layout="wide", initial_sidebar_state="expanded")
         load_dotenv()
-        st.header("Your DevOps Assistant🗣️💬")
+        st.header("Your Personal Assistant🗣️💬")
 
         # upload file
         pdf = st.file_uploader("Upload your PDF", type="pdf")
