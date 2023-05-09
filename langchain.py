@@ -1,60 +1,50 @@
 from dotenv import load_dotenv
 import streamlit as st
 from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
+from langchain.text_splitter import SentenceTextSplitter
 from langchain.embeddings.openai import OpenAIEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chains.question_answering import load_qa_chain
 from langchain.llms import OpenAI
 from langchain.callbacks import get_openai_callback
-import time
+import logging
 
 def main():
     try:
         st.set_page_config(page_title="GPT++", page_icon=None, layout="wide", initial_sidebar_state="expanded")
-
         load_dotenv()
-
-        st.header("Elliotts Personal Tutor 💬")
+        st.header("Your Personal Assistant 🗣️💬")
 
         # upload file
         pdf = st.file_uploader("Upload your PDF", type="pdf")
 
-        # extract the text
+        # extract the text and create embeddings
         if pdf is not None:
-            pdf_reader = PdfReader(pdf)
-            text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text()
+            with pdf.open("rb") as file:
+                pdf_reader = PdfReader(file)
+                text = ""
+                for page in pdf_reader.pages:
+                    text += page.extract_text()
+                embeddings = OpenAIEmbeddings()
+                splitter = SentenceTextSplitter()
+                chunks = splitter.split_text(text)
+                knowledge_base = FAISS.from_texts(chunks, embeddings)
 
-            # split into chunks
-            text_splitter = CharacterTextSplitter(
-                separator="\n",
-                chunk_size=1000,
-                chunk_overlap=200,
-                length_function=len
-            )
-            chunks = text_splitter.split_text(text)
-
-            # create embeddings
-            embeddings = OpenAIEmbeddings()
-            knowledge_base = FAISS.from_texts(chunks, embeddings)
-
-            # show user input
-            while True:
-                user_question = st.text_input("Query your PDF for insight:")
-                if user_question:
-                    docs = knowledge_base.similarity_search(user_question)
-                    # print(docs)
-
-                    llm = OpenAI()
-                    chain = load_qa_chain(llm, chain_type="stuff")
-                    response = chain.run(input_documents=docs, question=user_question)
-                    st.code(response, language="python")
+        # show user input
+        while True:
+            if pdf is None:
+                st.warning("Please upload a PDF file.")
+                break
+            user_question = st.text_input("Query your PDF for insight:")
+            if user_question:
+                docs = knowledge_base.similarity_search(user_question)
+                llm = OpenAI()
+                chain = load_qa_chain(llm, chain_type="stuff")
+                response = chain.run(input_documents=docs, question=user_question)
+                st.code(response, language="python")
 
     except Exception as e:
-        print(e)
-
+        logging.exception("An error occurred:")
 
 if __name__ == '__main__':
     main()
